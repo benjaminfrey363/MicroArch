@@ -1,0 +1,142 @@
+.constant
+OBJREF 0x40			// needed for method invokation - see S.C.O. chapter 4
+.end-constant
+
+.main
+
+start:  BIPUSH 0x2
+    BIPUSH 0x3
+    INVOKEVIRTUAL imul  // 0x6 should be on TOS...
+
+.end-main
+
+// Returns absolute value of int.
+.method abs( int )
+
+abs:    ILOAD int   // load integer argument onto stack
+    IFLT lesszero
+    // else, return integer as is.
+    ILOAD int
+    IRETURN
+lesszero:   ILOAD int   // load argument onto stack.
+    INEG    // Negate this integer. This is now on top of stack,
+    IRETURN // ready to be returned...
+
+.end-method
+
+
+// Returns the min of int1, int2
+.method min( int1, int2 )
+
+// If int1 - int2 < 0, return int1. Else, return int2.
+min:    ILOAD int1
+    ILOAD int2
+    ISUB    // (Hopefully) int1 - int2 is on top of the stack.
+    IFLT smaller1
+    // Else, return int2.
+    ILOAD int2
+    IRETURN
+
+smaller1:   ILOAD int1  // Return int1.
+    IRETURN
+
+.end-method
+
+
+// Returns the max of int1, int2
+.method max( int1, int2 )
+
+// If int1 - int2 < 0, return int2. Else, return int1.
+max:    ILOAD int1
+    ILOAD int2
+    ISUB    // (Hopefully) int1 - int2 is on top of the stack.
+    IFLT bigger1
+    // Else, return int1.
+    ILOAD int1
+    IRETURN
+
+bigger1:   ILOAD int2  // Return int2.
+    IRETURN
+
+.end-method
+
+
+.method imul( int1, int2 )
+.var
+m
+c
+o
+i
+absint1
+absint2
+.end-var
+
+imul:   BIPUSH 0x0
+    ISTORE m            // m = 0
+
+    ILOAD int1      // load int1 onto stack
+    INVOKEVIRTUAL abs   // |int1| returned
+    ISTORE absint1         // absint1 <- |int1|
+
+    ILOAD int2      // load int2 onto stack
+    INVOKEVIRTUAL abs   // |int2| returned
+    ISTORE absint2         // absint2 <- |int2|
+
+    // Want to calculate min(abs(int1), abs(int2))
+
+    ILOAD absint1     // load absint1 onto stack
+    ILOAD absint2     // load absint2 onto stack
+    INVOKEVIRTUAL min   // min is returned on top of stack.
+    ISTORE c       // store as c.
+
+    // Want to calculate max(abs(int1), abs(int2))
+
+    ILOAD absint1     // load absint1 onto stack
+    ILOAD absint2     // load absint2 onto stack
+    INVOKEVIRTUAL max   // max is returned on top of stack.
+    ISTORE o       // store as o.
+
+    // i = 0
+    BIPUSH 0x0
+    ISTORE i        // i = 0
+
+// Loop body
+imul_loop:
+    ILOAD m
+    ILOAD o
+    IADD    // m + o on top of stack.
+    ISTORE m
+
+// Loop test - if i - c < 0, branch to loop body.
+    ILOAD i
+    ILOAD c
+    ISUB    // i - c should be on TOS.
+    IFLT imul_loop
+
+// Check if exactly one of int1 or int2 is negative...
+    ILOAD int1
+    IFLT int1neg    // int1 < 0...
+
+    // Else, int1 positive...
+    ILOAD int2
+    IFLT mul_negate     // Exactly one is positive.
+    GOTO mul_continue   // Continue.
+
+int1neg:
+    ILOAD int2
+    IFLT mul_continue   // Both are neg, continue.
+    // Else, exactly one is positive.
+    // continue to mul_negate...
+
+mul_negate:
+    ILOAD m
+    INEG    // -m on TOS
+    ISTORE m    // Store as m.
+
+mul_continue:
+    // Return m.
+    ILOAD m
+    IRETURN
+
+.end-method
+
