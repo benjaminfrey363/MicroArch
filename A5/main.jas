@@ -3,8 +3,12 @@ OBJREF 0x40			// needed for method invokation - see S.C.O. chapter 4
 .end-constant
 
 .main
-
+.var
+a
+b
+.end-var
 start:  
+    // Can you see this?
     BIPUSH 0x2
     BIPUSH 0x3
     INVOKEVIRTUAL imul
@@ -27,75 +31,87 @@ lesszero:   ILOAD int   // load argument onto stack.
 .end-method
 
 
-// Returns the min of int1, int2
-.method min( int1, int2 )
+// Returns the min of arg1, arg2
+.method min(arg1, arg2)
 
-// If int1 - int2 < 0, return int1. Else, return int2.
-min:    ILOAD int1
-    ILOAD int2
-    ISUB    // int1 - int2 is on top of the stack.
+.var
+.end-var
+
+min:    
+    // Take absolute values of arguments.
+    ILOAD arg1
+    INVOKEVIRTUAL abs
+    ISTORE arg1
+    ILOAD arg2
+    INVOKEVIRTUAL abs
+    ISTORE arg2
+    ILOAD arg1
+    ILOAD arg2
+
+    ILOAD arg1
+    ILOAD arg2
+    ISUB    // arg1 - arg2 is on top of the stack.
     IFLT smaller1
-    // Else, return int2.
-    ILOAD int2
+    // Else, return arg2.
+    ILOAD arg2
     IRETURN
 
-smaller1:   ILOAD int1  // Return int1.
+smaller1:   ILOAD arg1  // Return arg1.
     IRETURN
 
 .end-method
 
 
-// Returns the max of int1, int2
-.method max( int1, int2 )
+// Returns the max of abs(arg1), abs(arg2)
+.method max(arg1, arg2)
 
-// If int1 - int2 < 0, return int2. Else, return int1.
-max:    ILOAD int1
-    ILOAD int2
-    ISUB    // int1 - int2 is on top of the stack.
+.var
+.end-var
+
+max:
+    // Take absolute values of arguments.
+    ILOAD arg1
+    INVOKEVIRTUAL abs
+    ISTORE arg1
+    ILOAD arg2
+    INVOKEVIRTUAL abs
+    ISTORE arg2
+    ILOAD arg1
+    ILOAD arg2
+
+    ISUB    // arg1 - arg2 is on top of the stack.
     IFLT bigger1
-    // Else, return int1.
-    ILOAD int1
+    // Else, return arg1.
+    ILOAD arg1
     IRETURN
 
-bigger1:   ILOAD int2  // Return int2.
+bigger1:   ILOAD arg2  // Return arg2.
     IRETURN
 
 .end-method
 
 
 // Returns the product of int1 and int2.
-.method imul( int1, int2 )
+.method imul(int1, int2)
 .var
 m
 c
 o
 i
-absint1
-absint2
 .end-var
 
-imul:   BIPUSH 0x0
+imul:   
+    BIPUSH 0x0
     ISTORE m            // m = 0
 
-    ILOAD int1      // load int1 onto stack
-    INVOKEVIRTUAL abs   // |int1| returned
-    ISTORE absint1         // absint1 <- |int1|
-
-    ILOAD int2      // load int2 onto stack
-    INVOKEVIRTUAL abs   // |int2| returned
-    ISTORE absint2         // absint2 <- |int2|
-
-    // Want to calculate min(abs(int1), abs(int2))
-
-    ILOAD absint1     // load absint1 onto stack
-    ILOAD absint2     // load absint2 onto stack
+    ILOAD int1     // load absint1 onto stack
+    ILOAD int2     // load absint2 onto stack
     INVOKEVIRTUAL min   // min is returned on top of stack.
     ISTORE c       // store as c.
 
-    // Want to calculate max(abs(int1), abs(int2))
-
-    ILOAD absint1     // load absint1 onto stack
-    ILOAD absint2     // load absint2 onto stack
+    ILOAD int1     // load absint1 onto stack
+    ILOAD int2     // load absint2 onto stack
+    ILOAD int1
     INVOKEVIRTUAL max   // max is returned on top of stack.
     ISTORE o       // store as o.
 
@@ -103,29 +119,30 @@ imul:   BIPUSH 0x0
     BIPUSH 0x0
     ISTORE i        // i = 0
 
-// Loop body
 imul_loop:
     ILOAD m
     ILOAD o
     IADD    // m + o on top of stack.
     ISTORE m
-
-// Loop test - if i - c < 0, branch to loop body.
-    ILOAD c
+    // Increment i.
     ILOAD i
+    BIPUSH 0x1
+    IADD
+    ISTORE i    // ++i
+
+    ILOAD i // Loop test - if i - c < 0, branch to loop body.
+    ILOAD c
     ISUB    // i - c should be on TOS.
     IFLT imul_loop
 
-// Check if exactly one of int1 or int2 is negative...
-    ILOAD int1
-    IFLT int1neg    // int1 < 0...
+    ILOAD int1 // Check if exactly one of int1 or int2 is negative...
+    IFLT int1_neg    // int1 < 0...
 
-    // Else, int1 positive...
-    ILOAD int2
+    ILOAD int2 // Else, int1 positive...
     IFLT mul_negate     // Exactly one is positive.
     GOTO mul_continue   // Continue.
 
-int1neg:
+int1_neg:
     ILOAD int2
     IFLT mul_continue   // Both are neg, continue.
     // Else, exactly one is positive.
