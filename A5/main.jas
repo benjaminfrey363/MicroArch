@@ -8,23 +8,29 @@ a
 b
 .end-var
 start:  
-    // Can you see this?
+    LDC_W OBJREF
     BIPUSH 0x2
-    BIPUSH 0x3
-    INVOKEVIRTUAL imul
+    BIPUSH 0x5
+    INVOKEVIRTUAL power
     INVOKEVIRTUAL print
+    IRETURN 
 
 .end-main
 
 // Returns absolute value of int.
 .method abs( int )
 
-abs:    ILOAD int   // load integer argument onto stack
-    IFLT lesszero
+.var
+.end-var
+
+abs:    
+    ILOAD int   // load integer argument onto stack
+    IFLT abs1   // if int < 0, must negate. branch.
     // else, return integer as is.
     ILOAD int
     IRETURN
-lesszero:   ILOAD int   // load argument onto stack.
+abs1:   
+    ILOAD int   // load argument onto stack.
     INEG    // Negate this integer. This is now on top of stack,
     IRETURN // ready to be returned...
 
@@ -38,20 +44,21 @@ lesszero:   ILOAD int   // load argument onto stack.
 .end-var
 
 min:    
-    // Take absolute values of arguments.
-    ILOAD arg1
-    INVOKEVIRTUAL abs
-    ISTORE arg1
-    ILOAD arg2
-    INVOKEVIRTUAL abs
-    ISTORE arg2
-    ILOAD arg1
-    ILOAD arg2
+    // First, take absolute values of arguments.
+    LDC_W OBJREF        // Load obj ref.
+    ILOAD arg1          // Load first int.
+    INVOKEVIRTUAL abs   // Take abs value.
+    ISTORE arg1         // Store as argument.
 
-    ILOAD arg1
+    LDC_W OBJREF        // Load obj ref.
+    ILOAD arg2          // Load second int.
+    INVOKEVIRTUAL abs   // Take abs value.
+    ISTORE arg2         // Store as argument.
+
+    ILOAD arg1          // Load arguments.
     ILOAD arg2
     ISUB    // arg1 - arg2 is on top of the stack.
-    IFLT smaller1
+    IFLT smaller1   // if arg1 - arg2 < 0, return arg1.
     // Else, return arg2.
     ILOAD arg2
     IRETURN
@@ -70,11 +77,15 @@ smaller1:   ILOAD arg1  // Return arg1.
 
 max:
     // Take absolute values of arguments.
+    LDC_W OBJREF
     ILOAD arg1
     INVOKEVIRTUAL abs
     ISTORE arg1
+
+    LDC_W OBJREF
     ILOAD arg2
     INVOKEVIRTUAL abs
+
     ISTORE arg2
     ILOAD arg1
     ILOAD arg2
@@ -104,14 +115,15 @@ imul:
     BIPUSH 0x0
     ISTORE m            // m = 0
 
+    LDC_W OBJREF
     ILOAD int1     // load absint1 onto stack
     ILOAD int2     // load absint2 onto stack
     INVOKEVIRTUAL min   // min is returned on top of stack.
     ISTORE c       // store as c.
 
+    LDC_W OBJREF
     ILOAD int1     // load absint1 onto stack
     ILOAD int2     // load absint2 onto stack
-    ILOAD int1
     INVOKEVIRTUAL max   // max is returned on top of stack.
     ISTORE o       // store as o.
 
@@ -169,10 +181,13 @@ i
 total
 .end-var
 
-power:  BIPUSH 0x1  // push 1 onto stack
+power:  
+    BIPUSH 0x1  // push 1 onto stack
     ISTORE total    // total = 1
     GOTO power_test // branch to loop test
-power_body: ILOAD total // load total on to stack
+power_body: 
+    LDC_W OBJREF
+    ILOAD total // load total on to stack
     ILOAD int1  // load int1 on to stack
     INVOKEVIRTUAL imul  // compute product.
     ISTORE total    // total = total * int1
