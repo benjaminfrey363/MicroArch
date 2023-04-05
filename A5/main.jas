@@ -1,19 +1,70 @@
 .constant
 OBJREF 0x40			// needed for method invokation - see S.C.O. chapter 4
+PRIME 0xD       // prime used in main.
+EXPONENT 0x6    // exponent used for test.
 .end-constant
 
 .main
 .var
-a
-b
+n
+result
 .end-var
-start:  
-    LDC_W OBJREF
+
+// Idea for main - use our power method to compute all
+// non-trivial quadratic residues mod 13 (using basic mod
+// function), and print these.
+
+// By Euler's criterion, a number n is a quadratic residue
+// modulo p iff n^{(p - 1)/2} \equiv 1 \mod p.
+// As we're only considering the prime 13, (p - 1)/2 = 6,
+// and this can be used as a constant.
+// Thus, we loop through all ints n less than 13, and
+// check whether n^EXP is 1 mod 13. If so, print.
+// Because this power will always either be 1 or -1, we can
+// simply print if this power is non-negative.
+
+start:
     BIPUSH 0x2
-    BIPUSH 0x5
-    INVOKEVIRTUAL power
+    ISTORE n     // Initialize n = 2 (0 and 1 are trivial QRs)
+
+main_body:
+    // Compute n^EXP
+    LDC_W OBJREF        // Load object reference.
+    ILOAD n             // Load n
+    LDC_W EXPONENT      // Load exponent.
+    INVOKEVIRTUAL power // Return n^exp
+
+    LDC_W OBJREF        // Load object reference
+    SWAP                // Swap s.t. OBJREF 1st arg, n^exp 2nd arg.
+    LDC_W PRIME         // Load prime as 3rd arg
+    INVOKEVIRTUAL mod   // Compute n^exp mod PRIME
+    ISTORE result       // Store as result
+
+    // Check if n is a QR...
+
+    ILOAD result                  // Load result
+    BIPUSH 0xC                    // Load 0xC = -1 (mod 13)
+    IF_ICMPEQ main_increment      // if result = -1, not a QR.
+
+    // Else, n is a QR! Print.
+    LDC_W OBJREF
+    ILOAD n
     INVOKEVIRTUAL print
-    IRETURN 
+
+main_increment:
+    // Increment n.
+    ILOAD n
+    BIPUSH 0x1
+    IADD
+    ISTORE n
+
+main_test:      // Loop if n < PRIME.
+    ILOAD n
+    LDC_W PRIME
+    ISUB
+    IFLT main_body  // If n - PRIME < 0, execute loop body.
+
+    IRETURN
 
 .end-main
 
@@ -208,6 +259,35 @@ power_test: ILOAD int2  // load int2 onto stack, loop if positive. int2 > 0 iff 
 .end-method
 
 
+// Computes n mod p. Assumes that n is non-negative.
+.method mod( n, p )
+
+.var
+.end-var
+
+mod:
+
+mod_loop:   // Subtract p from n.
+    ILOAD n     // Load n onto TOS.
+    ILOAD p     // Load p onto TOS.
+    ISUB        // n - p is on TOS.
+    ISTORE n    // n := n - p
+
+mod_test:   // Loop if n >= p iff p - n <= 0 iff p - n - 1 < 0
+    ILOAD p     // load p onto stack.
+    ILOAD n     // load n onto stack.
+    ISUB        // p - n should be on TOS.
+    BIPUSH 0x1  // load 1 onto stack.
+    ISUB        // p - n - 1 should now be on TOS.
+    IFLT mod_loop   // execute loop body if p - n - 1 < 0.
+
+    // n should now be its minimal representation mod n!
+    ILOAD n
+    IRETURN
+
+.end-method
+
+// NEED TO REFERENCE THIS!
 .method print( total ) 		// print converts a number into a string of
 				//   characters and prints them.  All of the characters
 				//   are pushed onto the stack, least significant
