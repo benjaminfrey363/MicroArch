@@ -20,8 +20,7 @@ result
 // and this can be used as a constant.
 // Thus, we loop through all ints n less than 13, and
 // check whether n^EXP is 1 mod 13. If so, print.
-// Because this power will always either be 1 or -1, we can
-// simply print if this power is non-negative.
+// To do this, we'll use our power function!
 
 start:
     BIPUSH 0x2
@@ -63,6 +62,18 @@ main_test:      // Loop if n < PRIME.
     LDC_W PRIME
     ISUB
     IFLT main_body  // If n - PRIME < 0, execute loop body.
+
+
+
+    // Before returning, test with negative base...
+    LDC_W OBJREF
+    BIPUSH 0x2
+    INEG            // -2 on TOS
+    BIPUSH 0x6      // Load 6 as second arg.
+    INVOKEVIRTUAL power
+    LDC_W OBJREF
+    SWAP
+    INVOKEVIRTUAL print
 
     IRETURN
 
@@ -286,6 +297,7 @@ mod_test:   // Loop if n >= p iff p - n <= 0 iff p - n - 1 < 0
     IRETURN
 
 .end-method
+
 
 // NEED TO REFERENCE THIS!
 .method print( total ) 		// print converts a number into a string of
