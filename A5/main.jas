@@ -299,7 +299,8 @@ mod_test:   // Loop if n >= p iff p - n <= 0 iff p - n - 1 < 0
 .end-method
 
 
-// NEED TO REFERENCE THIS!
+// I've included this print function from the "add.jas" example file.
+// THIS IS NOT MY OWN CODE!
 .method print( total ) 		// print converts a number into a string of
 				//   characters and prints them.  All of the characters
 				//   are pushed onto the stack, least significant
