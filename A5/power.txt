@@ -1,0 +1,28 @@
+///////////////////////////
+// GOOD COPY - HOPEFULLY //
+///////////////////////////
+
+// Because we initially store the base as total (without decrementing exponent), total will always be one power ahead
+// of the exponent. Thus, we'll loop while exponent - 1 > 0 rather than while exponent > 0.
+
+// In computing a^b, we'll refer to a as the base variable and b as the exponent variable throughout this algorithm.
+
+// First, make room on stack for total (will be TOS), and store base here (basically doing DUP)
+pow1 MAR = SP = SP + 1                          // Increment stack pointer, store in MAR st we can write to here.
+pow2 MDR = TOS; wr; goto powloopbody1           // Write TOS to SP - thus duplicating base on TOS (so total is initially the base)
+
+powloopbody1 MAR = SP - 1; rd   // Set MAR to address of base, begin read.
+powloopbody2 OPC = TOS          // Store total in OPC. By end of this cycle, base in MDR. Multiply OPC by MDR.
+powloopbody3 H = OPC            // Store total in H so that we can repeatedly add this value.
+powloopbody4 MDR = MDR - 1      // Decrement MDR (counting number of times to add big term to itself)
+powloopbody5 Z = MDR; if (Z) goto powt1; else goto powf1        // If small term is zero, product has been computed. Else, keep looping.
+
+powf1 OPC = H + OPC; goto powloopbody4      // Add total to itself, branch to decrement base (small term)
+
+powt1 MDR = TOS = OPC           // Set TOS and MDR to be the total computed in multiplication loop.
+powt2 MAR = SP; wr              // Write total to TOS. Next, want to load and decrement exponent.
+powt3 MAR = SP - 1              // MAR = SP - 1
+powt4 MAR = MAR - 1; rd         // MAR = SP - 2, address of exponent on stack. Begin read.
+powt5                           // For now, burning a clock cycle waiting for exponent to be read. By end of this cycle exp in MDR.
+powt6 MDR = MDR - 1; wr         // Decrement exponent, write this updated value to variable third from TOS (exponent variable)
+powt7 Z = MDR; if (Z) goto Main1; else goto powloopbody1        // If exponent is 0, exit. Else, continue looping.
