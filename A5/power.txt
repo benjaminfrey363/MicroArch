@@ -1,3 +1,53 @@
+// power microinstruction.
+// pops two values from TOS, returns the first (TOS)
+// raised to the power of the second (second from TOS).
+// assumes that both arguments are non-negative.
+
+// Throughout the entire algorithm, OPC contains small term.
+
+pow1 OPC = TOS; goto powbody1           // Use OPC to store base throughout algorithm.
+
+// Loop body - multiply value on TOS by OPC.
+powbody1 MDR = TOS          // OPC = small term, TOS = big term. Next decrement small term, proceed to loop.
+powbody2 OPC = OPC - 1      // decrement small term.
+powbody3 Z = OPC; if (Z) goto powt1; else goto powf1
+
+powt1 TOS = MDR; wr; goto powbodyn
+
+powf1 H = TOS                       // H = big term
+powf2 MDR = H + MDR; goto powbody2  // Add big term to total, repeat loop.
+
+powbodyn MAR = SP - 1; rd; goto powtest1
+
+// For loop test, compare value second from TOS to 0. Need to wait for
+// this value to be read.
+powtest1 
+powtest2 Z = MDR; if (Z) goto Main1; else goto powbody1       // If value is 0, return. Else, execute body.
+
+
+
+
+
+
+// First, multiplication microinstruction:
+// Store next to TOS value in OPC
+// First iteration - set MDR = TOS and decrement OPC.
+// Use MDR to store total.
+// while value stored in OPC is positive, add value in TOS to value in MDR, decrement value in OPC
+// Let A be value on TOS, B value second from TOS
+pow1 MAR = SP = SP - 1; rd     // Decrement stack pointer and store in MAR (want to read other argument), MDR = B
+pow2
+pow3 OPC = MDR                 // OPC = B, TOS = A
+pow4 MDR = TOS                 // MDR = A, next decrement B (value in OPC)
+pow5 OPC = OPC - 1             // B = B - 1, proceed to loop test.
+pow6 Z = OPC; if (Z) goto powt1; else goto powf1      // If B = 0, branch to return result. Else, keep adding.
+
+powt1 TOS = MDR; wr; goto Main1            // Set TOS = MDR = A*B, write to SP, exit.
+
+powf1 H = TOS                              // H = A
+powf2 MDR = H + MDR; goto pow5             // add A to total, go to decrement of B.
+
+
 ///////////////////////////
 // GOOD COPY - HOPEFULLY //
 ///////////////////////////
@@ -21,8 +71,124 @@ powf1 OPC = H + OPC; goto powloopbody4      // Add total to itself, branch to de
 
 powt1 MDR = TOS = OPC           // Set TOS and MDR to be the total computed in multiplication loop.
 powt2 MAR = SP; wr              // Write total to TOS. Next, want to load and decrement exponent.
-powt3 MAR = SP - 1              // MAR = SP - 1
-powt4 MAR = MAR - 1; rd         // MAR = SP - 2, address of exponent on stack. Begin read.
-powt5                           // For now, burning a clock cycle waiting for exponent to be read. By end of this cycle exp in MDR.
+powt3 SP = SP - 1               // SP = SP - 1
+powt4 MAR = SP - 1; rd          // MAR = SP - 2, address of exponent on stack. Begin read.
+powt5 SP = SP + 1               // Increment SP to again be pointing to TOS. By end of this cycle exp in MDR.
 powt6 MDR = MDR - 1; wr         // Decrement exponent, write this updated value to variable third from TOS (exponent variable)
-powt7 Z = MDR; if (Z) goto Main1; else goto powloopbody1        // If exponent is 0, exit. Else, continue looping.
+powt7 Z = MDR - 1; if (Z) goto powend1; else goto powloopbody1        // If exponent - 1 is 0, exit. Else, continue looping.
+
+// Finally, decrement SP by two and write total (should currently be in TOS)
+
+powend1 SP = SP - 1					// Decrement SP, now pointing at base...
+powend2 SP = MAR = SP - 1			// Decrement SP again, now pointing where we want to write...
+powend3 MDR = TOS; wr; goto Main1	// Write total, return to Main1.
+
+
+
+///////////////
+// OPTIMIZED //
+///////////////
+
+Optimized version storing total in TOS register.
+
+I think we may be able to just store the total computed so far in TOS throughout the entirety of the algorithm.
+Then we don't need to bother making room on the stack or moving SP around so much.
+
+No initialization needed if we do this - can jump straight into multiplication loop body!
+
+pow1 MAR = SP; rd					// Set MAR = SP and begin read - base will be read into MDR.
+pow2 OPC = TOS						// Store total in OPC. By the end of this cycle, base in MDR. Multiply OPC by MDR.
+pow3 H = OPC						// Store total in H so that we can repeatedly add this value to OPC.
+pow4 MDR = MDR - 1					// Decrement MDR (MDR is counting the # of times OPC has been added to itself)
+pow5 Z = MDR; if (Z) goto powt1; else goto powf1		// If small term is zero, product has been computed. Else, keep looping.
+
+powf1 OPC = H + OPC; goto pow4		// Add H to OPC, branch to decrement base.
+
+powt1 TOS = OPC						// Update total to computed product. Total stored in TOS. Next, load and decrement exponent.
+powt2 MAR = SP - 1; rd				// Read exponent (value 2nd from TOS)
+powt3 								// Need to burn a clock cycle to wait for exponent to be read.
+powt4 MDR = MDR - 1; wr				// Decrement exponent, write this updated value to stack.
+powt5 Z = MDR; if (Z) goto powend1; else goto pow1		// If exponent is zero, we're done. Else, continue looping.
+
+powend1 SP = MAR = SP - 1			// Decrement SP and set up for a write here.
+powend2 MDR = TOS; wr; goto Main1	// Write total to TOS, return to Main1
+
+
+Next, need to do some restructuring to get this to work with an exponent of 0 or 1.
+
+// WORKING OPTIMIZED INSTRUCTION:
+
+pow1 MAR = SP; rd						// Set MAR = SP and begin read - base will be read into MDR.
+powloop2 OPC = TOS						// Store total in OPC. By the end of this cycle, base in MDR. Multiply OPC by MDR.
+powloop3 H = OPC						// Store total in H so that we can repeatedly add this value to OPC.
+powloop4 MDR = MDR - 1					// Decrement MDR (MDR is counting the # of times OPC has been added to itself)
+powloop5 Z = MDR; if (Z) goto powt1; else goto powf1		// If small term is zero, product has been computed. Else, keep looping.
+
+powf1 OPC = H + OPC; goto powloop4		// Add H to OPC, branch to decrement base.
+
+powt1 TOS = OPC						// Update total to computed product. Total stored in TOS. Next, load and decrement exponent.
+powt2 MAR = SP - 1; rd				// Read exponent (value 2nd from TOS)
+powt3 								// Need to burn a clock cycle to wait for exponent to be read.
+powt4 MDR = MDR - 1; wr				// Decrement exponent, write this updated value to stack.
+powt5 Z = MDR - 1; if (Z) goto powend1; else goto powf2		// If exponent - 1 is zero, we're done. Else, continue looping.
+
+powf2 goto pow1						// Repeat multiplication loop.
+
+powend1 SP = MAR = SP - 1			// Decrement SP and set up for a write here.
+powend2 MDR = TOS; wr; goto Main1	// Write total to TOS
+
+
+
+
+Next, add support for exponent = 0, 1. Works great!!!
+
+pow1 TOS = 1                // Initialize total (will be stored in TOS) to be 1.
+pow2 MAR = SP - 1; rd       // Read exponent (value 2nd from TOS)
+pow3                        // Burn a clock cycle. By end of this cycle, exponent in MDR.
+pow4 Z = MDR; if (Z) goto powend1; else goto powmul1        // If exponent is 0, goto end. Else, execute multiplication loop.
+
+powmul1 MAR = SP; rd                // Set MAR = SP and begin read - base will be read into MDR.
+powmul2 H = OPC = TOS               // Store total in OPC and H. By end of this cycle, base in MDR. We will multiply OPC by MDR by repeatedly adding H to OPC.
+powmul3 MDR = MDR - 1               // Decrement MDR (MDR is effectively counting the # of times OPC has been added to itself)
+powmul4 Z = MDR; if (Z) goto powt1; else goto powf1         // If small term is zero, product has been computed. Else, keep looping
+
+powf1 OPC = H + OPC; goto powmul3   // Add H to OPC, branch to loop test.
+
+powt1 TOS = OPC                     // Update total to computed product. Total stored in TOS. Next, load and decrement exponent.
+powt2 MAR = SP - 1; rd              // Read exponent (value 2nd from TOS)
+powt3 								// Need to burn a clock cycle to wait for exponent to be read.
+powt4 MDR = MDR - 1; wr; goto pow4  // Decrement exponent, write, goto loop test. Will clean this up.
+
+powend1 MAR = SP = SP - 1           // Decrement SP and set up for a write here.
+powend2 MDR = TOS; wr; goto Main1   // Write total to TOS, return to Main1
+
+
+
+/////////////////////////////////////
+// FINISHED COPY, FULLY OPTIMIZED: //
+/////////////////////////////////////
+
+// pops two values from TOS, returns the first (TOS)
+// raised to the power of the second (second from TOS).
+// assumes that both arguments are non-negative.
+
+// throughout this microinstruction, the total product computed so far is stored in TOS, the base is read from SP, and
+// the exponent is read from SP - 1 (value 2nd from top of stack)
+
+pow1 TOS = 1                // Initialize total (will be stored in TOS) to be 1.
+pow2 MAR = SP - 1; rd       // Read exponent (value 2nd from TOS)
+pow3                        // Burn a clock cycle. By end of this cycle, exponent in MDR.
+pow4 N = MDR = MDR - 1; wr; if (N) goto powend1; else goto powmul1		// Decrement exponent and write to stack. If negative, we're done.
+
+powmul1 MAR = SP; rd                // Set MAR = SP and begin read - base will be read into MDR.
+powmul2 H = OPC = TOS               // Store total in OPC and H. By end of this cycle, base in MDR. We will multiply OPC by MDR by repeatedly adding H to OPC.
+powmul3 MDR = MDR - 1               // Decrement MDR (MDR is effectively counting the # of times OPC has been added to itself)
+powmul4 Z = MDR; if (Z) goto powt1; else goto powf1         // If small term is zero, product has been computed. Else, keep looping
+
+powf1 OPC = H + OPC; goto powmul3   // Add H to OPC, branch to loop test.
+
+powt1 TOS = OPC; goto pow2          // Update total to computed product, total stored in TOS. Jump to outer loop test.
+
+powend1 MAR = SP = SP - 1           // Decrement SP and set up for a write here.
+powend2 MDR = TOS; wr; goto Main1   // Write total to TOS, return to Main1
+
