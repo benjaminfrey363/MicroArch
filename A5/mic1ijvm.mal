@@ -244,37 +244,30 @@ ineg2 MAR = SP							// put stack pointer address in MAR - we will write to this
 ineg3 TOS = MDR = -H; wr; goto Main1	// negate H register and write this value to TOS, MDR registers (so now -H is the data to be written). Then we write to the address in MAR, which is the top of the stack. Thus, value at top of stack has been negated! Finally, return to Main1.
 
 
-///////////////////////////
-// GOOD COPY - HOPEFULLY //
-///////////////////////////
+////////////////////////////
+// POWER MICROINSTRUCTION //
+////////////////////////////
 
-// Because we initially store the base as total (without decrementing exponent), total will always be one power ahead
-// of the exponent. Thus, we'll loop while exponent - 1 > 0 rather than while exponent > 0.
+// pops two values from TOS, returns the first (TOS)
+// raised to the power of the second (second from TOS).
+// assumes that both arguments are non-negative.
 
-// In computing a^b, we'll refer to a as the base variable and b as the exponent variable throughout this algorithm.
+// throughout this microinstruction, the total product computed so far is stored in TOS, the base is read from SP, and
+// the exponent is read from SP - 1 (value 2nd from top of stack)
 
-// First, make room on stack for total (will be TOS), and store base here (basically doing DUP)
-pow1 MAR = SP = SP + 1                          // Increment stack pointer, store in MAR st we can write to here.
-pow2 MDR = TOS; wr; goto powloopbody1           // Write TOS to SP - thus duplicating base on TOS (so total is initially the base)
+pow1 TOS = 1                // Initialize total (will be stored in TOS) to be 1.
+pow2 MAR = SP - 1; rd       // Read exponent (value 2nd from TOS)
+pow3                        // Burn a clock cycle. By end of this cycle, exponent in MDR.
+pow4 N = MDR = MDR - 1; wr; if (N) goto powend1; else goto powmul1		// Decrement exponent and write to stack. If negative, we're done.
 
-powloopbody1 MAR = SP - 1; rd   // Set MAR to address of base, begin read.
-powloopbody2 OPC = TOS          // Store total in OPC. By end of this cycle, base in MDR. Multiply OPC by MDR.
-powloopbody3 H = OPC            // Store total in H so that we can repeatedly add this value.
-powloopbody4 MDR = MDR - 1      // Decrement MDR (counting number of times to add big term to itself)
-powloopbody5 Z = MDR; if (Z) goto powt1; else goto powf1        // If small term is zero, product has been computed. Else, keep looping.
+powmul1 MAR = SP; rd                // Set MAR = SP and begin read - base will be read into MDR.
+powmul2 H = OPC = TOS               // Store total in OPC and H. By end of this cycle, base in MDR. We will multiply OPC by MDR by repeatedly adding H to OPC.
+powmul3 MDR = MDR - 1               // Decrement MDR (MDR is effectively counting the # of times OPC has been added to itself)
+powmul4 Z = MDR; if (Z) goto powt1; else goto powf1         // If small term is zero, product has been computed. Else, keep looping
 
-powf1 OPC = H + OPC; goto powloopbody4      // Add total to itself, branch to decrement base (small term)
+powf1 OPC = H + OPC; goto powmul3   // Add H to OPC, branch to loop test.
 
-powt1 MDR = TOS = OPC           // Set TOS and MDR to be the total computed in multiplication loop.
-powt2 MAR = SP; wr              // Write total to TOS. Next, want to load and decrement exponent.
-powt3 SP = SP - 1               // SP = SP - 1
-powt4 MAR = SP - 1; rd          // MAR = SP - 2, address of exponent on stack. Begin read.
-powt5 SP = SP + 1               // Increment SP to again be pointing to TOS. By end of this cycle exp in MDR.
-powt6 MDR = MDR - 1; wr         // Decrement exponent, write this updated value to variable third from TOS (exponent variable)
-powt7 Z = MDR - 1; if (Z) goto powend1; else goto powloopbody1        // If exponent - 1 is 0, exit. Else, continue looping.
+powt1 TOS = OPC; goto pow2          // Update total to computed product, total stored in TOS. Jump to outer loop test.
 
-// Finally, decrement SP by two and write total (should currently be in TOS)
-
-powend1 SP = SP - 1					// Decrement SP, now pointing at base...
-powend2 SP = MAR = SP - 1			// Decrement SP again, now pointing where we want to write...
-powend3 MDR = TOS; wr; goto Main1	// Write total, return to Main1.
+powend1 MAR = SP = SP - 1           // Decrement SP and set up for a write here.
+powend2 MDR = TOS; wr; goto Main1   // Write total to TOS, return to Main1
