@@ -1,0 +1,146 @@
+//Test to check functionality of ifEven method. 
+//Test using numbers 1-10
+//If a number is even, will print 1, if odd, print 0.
+
+.constant
+OBJREF 0x40
+.end-constant
+
+.main
+
+.var
+x
+.end-var
+
+start:  
+    BIPUSH 1            //push 1 onto the stack
+    ISTORE x            //store 1 into var x
+    GOTO loop_test       //jump to loop test
+
+loop_body:
+    ILOAD x             //push x to TOS
+    IFEVEN even_branch 	//if x is even, jump to evenBranch
+
+    LDC_W OBJREF        //else Load OBJREF as first arg for print method
+    BIPUSH 1            //push 1 to stack (indicating odd number)
+    INVOKEVIRTUAL print //invoke print method
+    GOTO incx           //goto increment x label
+
+even_branch:
+    LDC_W OBJREF        //load OBJREF as first arg for print method
+    BIPUSH 0            //push 0 to stack (indicating even number)
+    INVOKEVIRTUAL print //invoke print method
+
+incx:
+    IINC x 1            //increment x value by one
+
+loop_test:
+    BIPUSH 0x10           //push 10 to TOS
+    ILOAD x             //push x to TOS
+    ISUB                //push 10-x to TOS
+    IFLT end            //if 10-x < 0, exit loop
+    GOTO loop_body       //else, goto top of loop
+
+end: 
+    IRETURN             //exit
+.end-main
+
+
+
+// print method from Mic1MMV examples folder.
+// THIS IS NOT MY OWN CODE!!!
+.method print( total ) 		// print converts a number into a string of
+				//   characters and prints them.  All of the characters
+				//   are pushed onto the stack, least significant
+				//   digit first, then popped off and printed.
+.var
+place
+index
+.end-var
+
+print: 	BIPUSH 0x9		// there are 8 nibbles in each integer--setting
+				//   this as nine pushes 10 characters onto the
+ 				//   stack, thus a total of ten printed digits,
+				//   but setting this less does not remove the
+				//   two leading zeros, just removes significant
+				//   digits
+	ISTORE index
+	BIPUSH 0x1		// comparison bit
+	ISTORE place
+print1:	BIPUSH 0x0
+	ILOAD index		// index = index - 1
+	BIPUSH 0x1
+	ISUB
+	DUP
+	IFEQ pall		// if index = 0  goto pall
+	ISTORE index
+	ILOAD total		// else
+	ILOAD place		//
+	IAND			//   if 1st bit of current nibble is zero (total & place)
+	IFEQ print2		//     goto print2
+	BIPUSH 0x1		//   else set first bit of character
+	IADD
+print2: ILOAD place		//   place = place << 1 
+	DUP
+	IADD
+	ISTORE place
+	ILOAD total
+	ILOAD place
+	IAND			//   if 2nd bit of current nibble is zero (total & place)
+	IFEQ print3		//     goto print3
+	BIPUSH 0x2		//   else set second bit of character
+	IADD	
+print3: ILOAD place		//   place = place << 1
+	DUP
+	IADD
+	ISTORE place
+	ILOAD total
+	ILOAD place
+	IAND			//   if 3rd bit of current nibble is zero (total & place)
+	IFEQ print4		//     goto print4
+	BIPUSH 0x4		//   else set second bit of character
+	IADD	
+print4: ILOAD place		//   place = place << 1
+	DUP
+	IADD
+	ISTORE place
+	ILOAD total
+	ILOAD place
+	IAND			//   if 4th bit of current nibble is zero (total & place)
+	IFEQ print5		//     goto print5
+	BIPUSH 0x8		//   else set second bit of character
+	IADD	
+print5: ILOAD place		//   place = place << 1
+	DUP
+	IADD
+	ISTORE place
+	GOTO print1
+	
+pall:   POP			// Pop off leading 0's
+	POP
+	BIPUSH 0x9
+	ISTORE index
+pall1:	ILOAD index		// index = index - 1
+	BIPUSH 0x1
+	ISUB
+	DUP
+	IFEQ return		// if index = 0  return
+	ISTORE index
+	DUP
+	BIPUSH 0xa		// else if character < 0xa goto pall1
+	ISUB
+	IFLT pall2
+	BIPUSH 0x37		// else convert character to "A"-"F"
+	IADD
+	OUT			// print character
+	GOTO pall1		// goto pall (prepare & print next character)
+pall2:	BIPUSH 0x30		// convert character to "0"-"9"
+	IADD
+	OUT			// print character
+	GOTO pall1		// goto pall1 (prepare & print next character)
+return:	BIPUSH 0xa		// print cr
+	OUT
+	IRETURN			// no return value
+.end-method
+
+
